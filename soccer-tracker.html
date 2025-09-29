@@ -1,0 +1,655 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soccer Touch Tracker</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#16a34a">
+    <meta name="description" content="Track soccer touches, possession, and pass strings during games">
+    <link rel="canonical" href="/">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="data:application/json,{
+        &quot;name&quot;: &quot;Soccer Touch Tracker&quot;,
+        &quot;short_name&quot;: &quot;Soccer Tracker&quot;,
+        &quot;description&quot;: &quot;Track soccer touches, possession, and pass strings&quot;,
+        &quot;start_url&quot;: &quot;/&quot;,
+        &quot;display&quot;: &quot;standalone&quot;,
+        &quot;background_color&quot;: &quot;#f0fdf4&quot;,
+        &quot;theme_color&quot;: &quot;#16a34a&quot;,
+        &quot;icons&quot;: [
+            {
+                &quot;src&quot;: &quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2316a34a'/%3E%3Ctext x='50' y='60' text-anchor='middle' font-size='40' fill='white'%3E⚽%3C/text%3E%3C/svg%3E&quot;,
+                &quot;sizes&quot;: &quot;192x192&quot;,
+                &quot;type&quot;: &quot;image/svg+xml&quot;
+            },
+            {
+                &quot;src&quot;: &quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2316a34a'/%3E%3Ctext x='50' y='60' text-anchor='middle' font-size='40' fill='white'%3E⚽%3C/text%3E%3C/svg%3E&quot;,
+                &quot;sizes&quot;: &quot;512x512&quot;,
+                &quot;type&quot;: &quot;image/svg+xml&quot;
+            }
+        ]
+    }">
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2316a34a'/%3E%3Ctext x='50' y='60' text-anchor='middle' font-size='40' fill='white'%3E⚽%3C/text%3E%3C/svg%3E">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            min-height: 100vh;
+            padding: 1rem;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        
+        .app {
+            max-width: 400px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #166534;
+            margin-bottom: 0.5rem;
+        }
+        
+        .game-time {
+            font-size: 0.875rem;
+            color: #16a34a;
+            margin-bottom: 1rem;
+        }
+        
+        .clock-btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+        
+        .clock-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .clock-running {
+            background: #ea580c;
+        }
+        
+        .clock-stopped {
+            background: #16a34a;
+        }
+        
+        .color-section {
+            background: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+        }
+        
+        .color-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .color-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .color-control {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .color-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .color-input {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 0.25rem;
+            border: 1px solid #d1d5db;
+            cursor: pointer;
+        }
+        
+        .streak-display {
+            text-align: center;
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            background: #fef3c7;
+            border-radius: 0.5rem;
+            border: 2px solid #fbbf24;
+        }
+        
+        .streak-text {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: #92400e;
+        }
+        
+        .streak-earned {
+            font-size: 0.875rem;
+            color: #a16207;
+            margin-top: 0.25rem;
+        }
+        
+        .team-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        .team-btn {
+            width: 100%;
+            color: white;
+            font-weight: bold;
+            padding: 2rem 1.5rem;
+            border-radius: 0.75rem;
+            font-size: 1.25rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+        }
+        
+        .team-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .team-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .team-stats {
+            margin-top: 0.75rem;
+            padding: 1rem;
+            border-radius: 0.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+        
+        .possession-stat {
+            margin-top: 0.75rem;
+            text-align: center;
+        }
+        
+        .possession-value {
+            font-size: 1.125rem;
+            font-weight: 600;
+        }
+        
+        .possession-label {
+            font-size: 0.875rem;
+        }
+        
+        .reset-btn {
+            width: 100%;
+            background: #6b7280;
+            color: white;
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s;
+            margin-bottom: 1.5rem;
+        }
+        
+        .reset-btn:hover {
+            background: #4b5563;
+        }
+        
+        .reset-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .instructions {
+            padding: 1rem;
+            background: #f9fafb;
+            border-radius: 0.5rem;
+        }
+        
+        .instructions h3 {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+        
+        .instructions ul {
+            font-size: 0.875rem;
+            color: #6b7280;
+            list-style: none;
+        }
+        
+        .instructions li {
+            margin: 0.25rem 0;
+        }
+        
+        .install-banner {
+            position: fixed;
+            bottom: 1rem;
+            left: 1rem;
+            right: 1rem;
+            background: #1f2937;
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+            transform: translateY(100px);
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        
+        .install-banner.show {
+            transform: translateY(0);
+        }
+        
+        .install-btn {
+            background: #16a34a;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+        
+        .close-btn {
+            background: #6b7280;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            margin: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <div class="header">
+            <h1 class="title">⚽ Soccer Touch Tracker</h1>
+            <div class="game-time" id="gameTime">Game Time: 0:00</div>
+            <button class="clock-btn clock-running" id="clockBtn" onclick="toggleClock()">
+                ⏸️ Pause Clock
+            </button>
+        </div>
+
+        <div class="color-section">
+            <h3 class="color-title">Team Colors</h3>
+            <div class="color-controls">
+                <div class="color-control">
+                    <label class="color-label">Team A:</label>
+                    <input type="color" class="color-input" id="teamAColor" value="#3b82f6" onchange="updateTeamColors()">
+                </div>
+                <div class="color-control">
+                    <label class="color-label">Team B:</label>
+                    <input type="color" class="color-input" id="teamBColor" value="#ef4444" onchange="updateTeamColors()">
+                </div>
+            </div>
+        </div>
+
+        <div class="streak-display" id="streakDisplay" style="display: none;">
+            <div class="streak-text" id="streakText"></div>
+            <div class="streak-earned" id="streakEarned" style="display: none;">🏆 Pass String Earned!</div>
+        </div>
+
+        <div class="team-section">
+            <button class="team-btn" id="teamABtn" onclick="handleTouch('A')" style="background-color: #3b82f6;">
+                Team A Touch
+            </button>
+            <div class="team-stats" id="teamAStats" style="background-color: rgba(59, 130, 246, 0.1);">
+                <div class="stats-grid">
+                    <div>
+                        <div class="stat-value" id="teamATouches" style="color: #3b82f6;">0</div>
+                        <div class="stat-label" style="color: rgba(59, 130, 246, 0.8);">Total Touches</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" id="teamAStrings" style="color: #3b82f6;">0</div>
+                        <div class="stat-label" style="color: rgba(59, 130, 246, 0.8);">Pass Strings</div>
+                    </div>
+                </div>
+                <div class="possession-stat">
+                    <div class="possession-value" id="teamAPossession" style="color: #3b82f6;">0%</div>
+                    <div class="possession-label" style="color: rgba(59, 130, 246, 0.8);">Possession</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="team-section">
+            <button class="team-btn" id="teamBBtn" onclick="handleTouch('B')" style="background-color: #ef4444;">
+                Team B Touch
+            </button>
+            <div class="team-stats" id="teamBStats" style="background-color: rgba(239, 68, 68, 0.1);">
+                <div class="stats-grid">
+                    <div>
+                        <div class="stat-value" id="teamBTouches" style="color: #ef4444;">0</div>
+                        <div class="stat-label" style="color: rgba(239, 68, 68, 0.8);">Total Touches</div>
+                    </div>
+                    <div>
+                        <div class="stat-value" id="teamBStrings" style="color: #ef4444;">0</div>
+                        <div class="stat-label" style="color: rgba(239, 68, 68, 0.8);">Pass Strings</div>
+                    </div>
+                </div>
+                <div class="possession-stat">
+                    <div class="possession-value" id="teamBPossession" style="color: #ef4444;">0%</div>
+                    <div class="possession-label" style="color: rgba(239, 68, 68, 0.8);">Possession</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="reset-btn" onclick="resetGame()">🔄 Reset Game</button>
+
+        <div class="instructions">
+            <h3>How to use:</h3>
+            <ul>
+                <li>• Customize team colors using the color pickers</li>
+                <li>• Use Pause/Start Clock during breaks and halftime</li>
+                <li>• Tap the team button each time a player touches the ball</li>
+                <li>• Pass strings are earned for every 3+ consecutive touches</li>
+                <li>• Possession % is calculated based on time with the ball</li>
+                <li>• Use Reset to start a new game</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Install Banner -->
+    <div class="install-banner" id="installBanner">
+        <div>📱 Install this app for offline use!</div>
+        <div>
+            <button class="install-btn" onclick="installApp()">Install App</button>
+            <button class="close-btn" onclick="hideInstallBanner()">Later</button>
+        </div>
+    </div>
+
+    <script>
+        // App state
+        let gameState = {
+            teamA: { totalTouches: 0, passStrings: 0, totalPossessionTime: 0 },
+            teamB: { totalTouches: 0, passStrings: 0, totalPossessionTime: 0 },
+            currentStreak: 0,
+            currentTeam: null,
+            possessionStartTime: null,
+            gameStartTime: Date.now(),
+            currentPossessionTime: 0,
+            isClockRunning: true,
+            teamAColor: '#3b82f6',
+            teamBColor: '#ef4444'
+        };
+
+        let updateTimer;
+        let deferredPrompt;
+
+        // Initialize app
+        function init() {
+            updateTimer = setInterval(updateDisplay, 100);
+            loadGameState();
+            updateTeamColors();
+            
+            // PWA install prompt
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                showInstallBanner();
+            });
+        }
+
+        function handleTouch(team) {
+            const now = Date.now();
+            
+            // If switching teams or first touch
+            if (gameState.currentTeam !== team) {
+                // Add possession time to previous team
+                if (gameState.currentTeam && gameState.possessionStartTime && gameState.isClockRunning) {
+                    const possessionTime = now - gameState.possessionStartTime;
+                    gameState[`team${gameState.currentTeam}`].totalPossessionTime += possessionTime;
+                }
+                
+                // Reset streak and start new possession
+                gameState.currentStreak = 1;
+                gameState.currentTeam = team;
+                gameState.possessionStartTime = gameState.isClockRunning ? now : null;
+                gameState.currentPossessionTime = 0;
+            } else {
+                // Same team, increment streak
+                gameState.currentStreak++;
+            }
+
+            // Update touch count
+            gameState[`team${team}`].totalTouches++;
+            
+            // Award pass string if this completes 3 consecutive touches
+            if (gameState.currentStreak === 3) {
+                gameState[`team${team}`].passStrings++;
+            }
+            
+            saveGameState();
+            updateDisplay();
+        }
+
+        function toggleClock() {
+            const now = Date.now();
+            const btn = document.getElementById('clockBtn');
+            
+            if (gameState.isClockRunning) {
+                // Stopping the clock
+                if (gameState.currentTeam && gameState.possessionStartTime) {
+                    const possessionTime = now - gameState.possessionStartTime;
+                    gameState[`team${gameState.currentTeam}`].totalPossessionTime += possessionTime;
+                }
+                gameState.possessionStartTime = null;
+                gameState.currentPossessionTime = 0;
+                gameState.isClockRunning = false;
+                
+                btn.textContent = '▶️ Start Clock';
+                btn.className = 'clock-btn clock-stopped';
+            } else {
+                // Starting the clock
+                if (gameState.currentTeam) {
+                    gameState.possessionStartTime = now;
+                }
+                gameState.isClockRunning = true;
+                
+                btn.textContent = '⏸️ Pause Clock';
+                btn.className = 'clock-btn clock-running';
+            }
+            
+            saveGameState();
+        }
+
+        function resetGame() {
+            gameState = {
+                teamA: { totalTouches: 0, passStrings: 0, totalPossessionTime: 0 },
+                teamB: { totalTouches: 0, passStrings: 0, totalPossessionTime: 0 },
+                currentStreak: 0,
+                currentTeam: null,
+                possessionStartTime: null,
+                gameStartTime: Date.now(),
+                currentPossessionTime: 0,
+                isClockRunning: true,
+                teamAColor: gameState.teamAColor,
+                teamBColor: gameState.teamBColor
+            };
+            
+            const btn = document.getElementById('clockBtn');
+            btn.textContent = '⏸️ Pause Clock';
+            btn.className = 'clock-btn clock-running';
+            
+            saveGameState();
+            updateDisplay();
+        }
+
+        function updateTeamColors() {
+            const teamAColor = document.getElementById('teamAColor').value;
+            const teamBColor = document.getElementById('teamBColor').value;
+            
+            gameState.teamAColor = teamAColor;
+            gameState.teamBColor = teamBColor;
+            
+            // Update team A colors
+            document.getElementById('teamABtn').style.backgroundColor = teamAColor;
+            document.getElementById('teamAStats').style.backgroundColor = teamAColor + '1a';
+            document.getElementById('teamATouches').style.color = teamAColor;
+            document.getElementById('teamAStrings').style.color = teamAColor;
+            document.getElementById('teamAPossession').style.color = teamAColor;
+            document.querySelectorAll('#teamAStats .stat-label, #teamAStats .possession-label').forEach(el => {
+                el.style.color = teamAColor + 'cc';
+            });
+            
+            // Update team B colors
+            document.getElementById('teamBBtn').style.backgroundColor = teamBColor;
+            document.getElementById('teamBStats').style.backgroundColor = teamBColor + '1a';
+            document.getElementById('teamBTouches').style.color = teamBColor;
+            document.getElementById('teamBStrings').style.color = teamBColor;
+            document.getElementById('teamBPossession').style.color = teamBColor;
+            document.querySelectorAll('#teamBStats .stat-label, #teamBStats .possession-label').forEach(el => {
+                el.style.color = teamBColor + 'cc';
+            });
+            
+            saveGameState();
+        }
+
+        function updateDisplay() {
+            // Update possession time
+            if (gameState.possessionStartTime && gameState.isClockRunning) {
+                gameState.currentPossessionTime = Date.now() - gameState.possessionStartTime;
+            }
+            
+            // Update game time
+            const totalTime = gameState.teamA.totalPossessionTime + gameState.teamB.totalPossessionTime + gameState.currentPossessionTime;
+            document.getElementById('gameTime').textContent = `Game Time: ${formatTime(totalTime)}`;
+            
+            // Update team stats
+            document.getElementById('teamATouches').textContent = gameState.teamA.totalTouches;
+            document.getElementById('teamAStrings').textContent = gameState.teamA.passStrings;
+            document.getElementById('teamAPossession').textContent = getPossessionPercentage('A') + '%';
+            
+            document.getElementById('teamBTouches').textContent = gameState.teamB.totalTouches;
+            document.getElementById('teamBStrings').textContent = gameState.teamB.passStrings;
+            document.getElementById('teamBPossession').textContent = getPossessionPercentage('B') + '%';
+            
+            // Update streak display
+            const streakDisplay = document.getElementById('streakDisplay');
+            const streakText = document.getElementById('streakText');
+            const streakEarned = document.getElementById('streakEarned');
+            
+            if (gameState.currentStreak > 0) {
+                streakDisplay.style.display = 'block';
+                streakText.textContent = `Team ${gameState.currentTeam}: ${gameState.currentStreak} touches in a row`;
+                streakEarned.style.display = gameState.currentStreak >= 3 ? 'block' : 'none';
+            } else {
+                streakDisplay.style.display = 'none';
+            }
+        }
+
+        function formatTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = seconds % 60;
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        function getPossessionPercentage(team) {
+            const totalTime = gameState.teamA.totalPossessionTime + gameState.teamB.totalPossessionTime + gameState.currentPossessionTime;
+            if (totalTime === 0) return 0;
+            
+            let teamTime = gameState[`team${team}`].totalPossessionTime;
+            if (gameState.currentTeam === team) {
+                teamTime += gameState.currentPossessionTime;
+            }
+            
+            return Math.round((teamTime / totalTime) * 100);
+        }
+
+        function saveGameState() {
+            localStorage.setItem('soccerTrackerState', JSON.stringify(gameState));
+        }
+
+        function loadGameState() {
+            const saved = localStorage.getItem('soccerTrackerState');
+            if (saved) {
+                const savedState = JSON.parse(saved);
+                // Only load non-time related state
+                gameState.teamAColor = savedState.teamAColor || '#3b82f6';
+                gameState.teamBColor = savedState.teamBColor || '#ef4444';
+                
+                document.getElementById('teamAColor').value = gameState.teamAColor;
+                document.getElementById('teamBColor').value = gameState.teamBColor;
+            }
+        }
+
+        // PWA functions
+        function showInstallBanner() {
+            document.getElementById('installBanner').classList.add('show');
+        }
+
+        function hideInstallBanner() {
+            document.getElementById('installBanner').classList.remove('show');
+        }
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    deferredPrompt = null;
+                    hideInstallBanner();
+                });
+            }
+        }
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript,const CACHE_NAME="soccer-tracker-v1";const urlsToCache=["/"];self.addEventListener("install",event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(urlsToCache)))});self.addEventListener("fetch",event=>{event.respondWith(caches.match(event.request).then(response=>{if(response){return response}return fetch(event.request)}))});')
+                .then(() => console.log('Service Worker registered'))
+                .catch(() => console.log('Service Worker registration failed'));
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
